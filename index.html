@@ -1,0 +1,961 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>活动组自留物料盘点（不在库）</title>
+<style>
+  :root{
+    --navy:#1d3557; --navy-2:#2a4a73; --gold:#b8860b; --gold-soft:#fdf6e3;
+    --bg:#f4f6fa; --card:#ffffff; --ink:#22303f; --ink-2:#5a6b7d; --line:#e3e8f0;
+    --ok:#2e7d32; --warn:#b26a00; --danger:#a03030;
+    --blue-bg:#eaf1fb; --radius:14px;
+    --shadow:0 1px 3px rgba(29,53,87,.08),0 4px 14px rgba(29,53,87,.06);
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{-webkit-text-size-adjust:100%}
+  body{font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei","Helvetica Neue",sans-serif;
+    background:var(--bg);color:var(--ink);min-height:100vh;padding-bottom:80px}
+  header{background:linear-gradient(135deg,var(--navy) 0%,var(--navy-2) 100%);color:#fff;
+    padding:18px 18px 16px;position:sticky;top:0;z-index:50;box-shadow:var(--shadow)}
+  .h-row{max-width:920px;margin:0 auto;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+  .logo{width:38px;height:38px;border-radius:10px;background:rgba(255,255,255,.14);
+    display:flex;align-items:center;justify-content:center;font-size:20px;flex:none}
+  h1{font-size:18px;font-weight:600;letter-spacing:.5px}
+  .sub{font-size:12px;opacity:.75;margin-top:2px}
+  .h-right{margin-left:auto;display:flex;align-items:center;gap:8px}
+  .user-chip{background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.25);
+    padding:6px 12px;border-radius:999px;font-size:13px;cursor:pointer;user-select:none;white-space:nowrap}
+  .user-chip:active{transform:scale(.97)}
+  .icon-btn{background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.25);color:#fff;
+    width:34px;height:34px;border-radius:10px;font-size:15px;cursor:pointer;flex:none}
+  .sync{width:100%;max-width:920px;margin:6px auto 0;font-size:11px;opacity:.65}
+  nav.tabs{max-width:920px;margin:14px auto 0;display:flex;gap:6px;padding:0 12px;overflow-x:auto;scrollbar-width:none}
+  nav.tabs::-webkit-scrollbar{display:none}
+  .tab{flex:none;padding:9px 16px;border-radius:999px;background:#fff;color:var(--ink-2);
+    font-size:14px;cursor:pointer;border:1px solid var(--line);font-weight:500;transition:.15s}
+  .tab.active{background:var(--navy);color:#fff;border-color:var(--navy);box-shadow:var(--shadow)}
+  .tab .dot{display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--gold);margin-left:5px;vertical-align:middle}
+  main{max-width:920px;margin:0 auto;padding:14px 12px 20px}
+  .banner{background:#fff8e6;border:1px solid #ecd9a8;color:var(--warn);border-radius:10px;
+    padding:10px 14px;font-size:13px;margin-bottom:12px;line-height:1.6}
+  .banner.ok{background:#eaf3ec;border-color:#cfe1d2;color:var(--ok)}
+  .card{background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);padding:18px;margin-bottom:14px}
+  .card h2{font-size:16px;margin-bottom:4px;display:flex;align-items:center;gap:8px}
+  .card h2 .ico{width:28px;height:28px;border-radius:8px;background:var(--blue-bg);display:flex;align-items:center;justify-content:center;font-size:15px}
+  .hint{font-size:12.5px;color:var(--ink-2);margin-bottom:14px;line-height:1.6}
+  .hint.bad{color:var(--danger);font-weight:600}
+  .hint b{color:var(--ink)}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:12px}
+  .item-card{background:#fff;border:1px solid var(--line);border-radius:12px;padding:14px;position:relative;transition:.15s}
+  .item-name{font-size:14px;font-weight:600;line-height:1.4;min-height:38px}
+  .item-stock{font-size:30px;font-weight:700;color:var(--navy);margin-top:6px;line-height:1}
+  .item-stock small{font-size:12px;font-weight:400;color:var(--ink-2);margin-left:3px}
+  .badge{position:absolute;top:10px;right:10px;font-size:11px;padding:2px 8px;border-radius:999px;font-weight:500}
+  .badge.low{background:var(--gold-soft);color:var(--warn);border:1px solid #ecd9a8}
+  .badge.zero{background:#f9e9e9;color:var(--danger);border:1px solid #eccaca}
+  .item-min{font-size:11px;color:var(--ink-2);margin-top:6px}
+  .item-loc{font-size:11px;color:var(--ink-2);margin-top:4px;line-height:1.55}
+  .chip-btn{padding:6px 14px;border-radius:999px;border:1px solid var(--line);background:#fff;color:var(--ink-2);font-size:12.5px;cursor:pointer;margin:0 8px 8px 0}
+  .chip-btn.on{background:var(--navy);color:#fff;border-color:var(--navy)}
+  label{display:block;font-size:13px;font-weight:600;color:var(--ink-2);margin:12px 0 6px}
+  input[type=text],input[type=number],select,textarea{
+    width:100%;padding:11px 12px;border:1px solid var(--line);border-radius:10px;font-size:15px;
+    background:#fff;color:var(--ink);outline:none;font-family:inherit;transition:.15s}
+  input:focus,select:focus,textarea:focus{border-color:var(--navy-2);box-shadow:0 0 0 3px rgba(42,74,115,.12)}
+  .btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;border:none;cursor:pointer;
+    padding:12px 22px;border-radius:10px;font-size:15px;font-weight:600;font-family:inherit;transition:.15s}
+  .btn:active{transform:scale(.97)}
+  .btn-primary{background:var(--navy);color:#fff}
+  .btn-primary:hover{background:var(--navy-2)}
+  .btn-gold{background:var(--gold);color:#fff}
+  .btn-ghost{background:#fff;color:var(--navy);border:1px solid var(--line)}
+  .btn-sm{padding:7px 14px;font-size:13px;border-radius:8px}
+  .btn-danger{background:#fff;color:var(--danger);border:1px solid #eccaca}
+  .btn[disabled]{opacity:.5;cursor:not-allowed}
+  .in-row{display:grid;grid-template-columns:1fr 110px 96px;gap:10px;align-items:center;
+    padding:10px 0;border-bottom:1px dashed var(--line)}
+  .in-row:last-child{border-bottom:none}
+  .in-name{font-size:14px;font-weight:500}
+  .in-name small{display:block;color:var(--ink-2);font-weight:400;font-size:11.5px;margin-top:2px}
+  .in-input input{padding:9px 10px}
+  .in-sum{font-size:13px;color:var(--navy);text-align:center;font-weight:600}
+  .new-row{display:grid;grid-template-columns:1.4fr 70px 90px 36px;gap:8px;align-items:center;margin-bottom:8px}
+  .new-row input{padding:9px 10px;font-size:14px}
+  .stock-tip{font-size:12.5px;color:var(--ink-2);background:var(--blue-bg);border-radius:8px;padding:8px 12px;margin-top:8px;line-height:1.6}
+  .stock-tip b{color:var(--navy)}
+  .log{display:flex;gap:12px;padding:12px 4px;border-bottom:1px solid var(--line);align-items:flex-start}
+  .log:last-child{border-bottom:none}
+  .log-ico{width:34px;height:34px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:16px;flex:none}
+  .log-ico.in{background:#e7f3e8;color:var(--ok)}
+  .log-ico.out{background:var(--gold-soft);color:var(--warn)}
+  .log-ico.edit{background:var(--blue-bg);color:var(--navy)}
+  .log-body{flex:1;min-width:0}
+  .log-t1{font-size:14px;line-height:1.5}
+  .log-t1 b{font-weight:600}
+  .log-t2{font-size:12px;color:var(--ink-2);margin-top:3px;display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+  .loc-tag{background:var(--blue-bg);color:var(--navy);padding:1px 8px;border-radius:6px;font-size:11.5px}
+  .qty-tag{font-weight:700;padding:0 2px}
+  .qty-in{color:var(--ok)} .qty-out{color:var(--warn)}
+  table.mgr{width:100%;border-collapse:collapse;font-size:13.5px}
+  table.mgr th{text-align:left;color:var(--ink-2);font-weight:600;padding:8px 6px;border-bottom:2px solid var(--line);font-size:12.5px;white-space:nowrap}
+  table.mgr td{padding:9px 6px;border-bottom:1px solid var(--line);vertical-align:middle}
+  table.mgr input{padding:7px 9px;font-size:13.5px;border-radius:8px}
+  .chip-list{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+  .chip{background:var(--blue-bg);color:var(--navy);border-radius:999px;padding:6px 8px 6px 14px;font-size:13.5px;display:flex;align-items:center;gap:6px}
+  .chip .x{cursor:pointer;color:var(--ink-2);width:20px;height:20px;border-radius:50%;
+    display:flex;align-items:center;justify-content:center;font-size:12px}
+  .chip .x:hover{background:#d7e4f5;color:var(--danger)}
+  .inline-form{display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end}
+  .inline-form .f{flex:1;min-width:130px}
+  .mask{position:fixed;inset:0;background:rgba(20,32,48,.45);z-index:100;display:flex;align-items:center;justify-content:center;padding:18px}
+  .modal{background:#fff;border-radius:16px;padding:24px;width:100%;max-width:380px;box-shadow:0 20px 60px rgba(0,0,0,.25)}
+  .modal h3{font-size:17px;margin-bottom:6px}
+  .modal p{font-size:13px;color:var(--ink-2);line-height:1.6}
+  .name-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:8px;margin:14px 0}
+  .name-opt{border:1.5px solid var(--line);border-radius:10px;padding:10px 6px;text-align:center;font-size:14px;cursor:pointer;transition:.12s}
+  .name-opt:hover{border-color:var(--navy-2)}
+  .name-opt.active{border-color:var(--navy);background:var(--blue-bg);color:var(--navy);font-weight:600}
+  #toast{position:fixed;left:50%;bottom:96px;transform:translateX(-50%) translateY(20px);z-index:200;
+    background:var(--navy);color:#fff;padding:11px 20px;border-radius:12px;font-size:14px;
+    opacity:0;pointer-events:none;transition:.25s;max-width:86vw;text-align:center;box-shadow:0 8px 24px rgba(0,0,0,.25)}
+  #toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+  #toast.err{background:var(--danger)}
+  .empty{text-align:center;color:var(--ink-2);padding:34px 10px;font-size:14px}
+  .divider{height:1px;background:var(--line);margin:16px 0}
+  .sec-title{font-size:14px;font-weight:600;margin:18px 0 8px;display:flex;align-items:center;gap:8px}
+  .sec-title .ico{width:24px;height:24px;border-radius:6px;background:var(--blue-bg);display:flex;align-items:center;justify-content:center;font-size:12px}
+  .summary{display:flex;gap:14px;flex-wrap:wrap;margin-bottom:14px}
+  .summary-item{background:var(--blue-bg);border-radius:10px;padding:10px 14px;min-width:110px}
+  .summary-item .v{font-size:20px;font-weight:700;color:var(--navy);line-height:1.1}
+  .summary-item .k{font-size:11.5px;color:var(--ink-2);margin-top:3px}
+  .x-btn{width:34px;height:34px;border:1px solid var(--line);background:#fff;color:var(--ink-2);
+    border-radius:8px;cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center}
+  .x-btn:hover{border-color:var(--danger);color:var(--danger)}
+  @media (max-width:520px){
+    .in-row{grid-template-columns:1fr 92px 84px;gap:6px}
+    .new-row{grid-template-columns:1fr 60px 80px 32px;gap:6px}
+    .item-name{min-height:0}
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="h-row">
+    <div class="logo">🎁</div>
+    <div>
+      <h1>活动组自留物料盘点</h1>
+      <div class="sub">市场部活动组 · 自留物料（不在库）· 库存 / 领用 / 入库 实时共享</div>
+    </div>
+    <div class="h-right">
+      <button class="user-chip" id="userChip" onclick="openNameModal()">👤 未选择</button>
+      <button class="icon-btn" title="刷新数据" onclick="load(true)">⟳</button>
+    </div>
+  </div>
+  <div class="sync" id="syncInfo">正在加载…</div>
+</header>
+
+<div style="max-width:920px;margin:0 auto;padding:0 12px">
+  <div id="topBanner" style="display:none;margin-top:12px"></div>
+</div>
+
+<nav class="tabs">
+  <button class="tab active" data-tab="inv" onclick="switchTab('inv')">📦 库存</button>
+  <button class="tab" data-tab="out" onclick="switchTab('out')">📤 领用登记</button>
+  <button class="tab" data-tab="in" onclick="switchTab('in')">📥 入库登记</button>
+  <button class="tab" data-tab="log" onclick="switchTab('log')">📋 记录<span class="dot" id="logDot" style="display:none"></span></button>
+  <button class="tab" data-tab="mgr" onclick="switchTab('mgr')">⚙️ 管理</button>
+</nav>
+
+<main>
+  <!-- 库存 -->
+  <section id="tab-inv">
+    <div class="card">
+      <h2><span class="ico">📦</span>当前库存</h2>
+      <div class="hint">所有人看到的库存<b>实时同步</b>。领用后库存自动减少；活动结束把物料带回公司在「入库登记」录入后会增加。</div>
+      <div class="summary" id="summary"></div>
+      <div class="hint" style="margin:0 0 6px">按仓库查看：</div>
+      <div id="officeChips" style="margin-bottom:6px"></div>
+      <div id="invGrid" class="grid"></div>
+    </div>
+  </section>
+
+  <!-- 领用 -->
+  <section id="tab-out" style="display:none">
+    <div class="card">
+      <h2><span class="ico">📤</span>领用物料（出库）</h2>
+      <div class="hint">从办公地点领用物料去活动使用，提交后<b>立即从库存扣减</b>。一次可以领用多种物料。</div>
+      <label>领用办公地点</label>
+      <select id="outOffice" onchange="officeSelChange('outOffice','outOfficeOther');renderOut()"></select>
+      <input type="text" id="outOfficeOther" placeholder="填写地点名称，例如：东莞仓库" style="display:none;margin-top:8px">
+      <label>活动名称 / 领用原因（必填）</label>
+      <input type="text" id="outNote" placeholder="例如：2026广交会一期 客户礼品">
+
+      <div class="sec-title"><span class="ico">📋</span>选择领用物料与数量</div>
+      <div class="hint" style="margin:0 0 10px">只需在要领用的物料后面填数量，没领的留空即可。</div>
+      <div id="outRows"></div>
+      <div class="hint" style="margin:8px 0 0" id="outPreview">填入数量后提交</div>
+
+      <div style="margin-top:18px">
+        <button class="btn btn-gold" id="outSubmit" onclick="submitOut()">提交领用</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- 入库 -->
+  <section id="tab-in" style="display:none">
+    <div class="card">
+      <h2><span class="ico">📥</span>入库登记</h2>
+      <div class="hint">活动结束后，盘点剩余物料带回公司在下面登记。库存会按地点和数量自动<b>增加</b>。</div>
+      <label>存放/带回地点</label>
+      <select id="inOffice" onchange="officeSelChange('inOffice','inOfficeOther')"></select>
+      <input type="text" id="inOfficeOther" placeholder="填写地点名称，例如：东莞仓库" style="display:none;margin-top:8px">
+      <label>活动名称 / 备注（选填）</label>
+      <input type="text" id="inNote" placeholder="例如：2026广交会一期 结束退回">
+
+      <div class="sec-title"><span class="ico">📋</span>退回已知物料</div>
+      <div id="inRows"></div>
+      <div class="hint" style="margin:6px 0 0" id="inPreview">填入数量后提交</div>
+
+      <div class="divider"></div>
+      <div class="sec-title"><span class="ico">➕</span>带回清单外的新物料</div>
+      <div class="hint" style="margin:6px 0 10px">如果有清单里没有的新物料，按下面格式添加后提交（会自动加入物料清单）。</div>
+      <div id="newRows"></div>
+      <button class="btn btn-ghost btn-sm" onclick="addNewRow()">+ 添加一行</button>
+
+      <div style="margin-top:18px">
+        <button class="btn btn-primary" id="inSubmit" onclick="submitIn()">提交入库</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- 记录 -->
+  <section id="tab-log" style="display:none">
+    <div class="card">
+      <h2><span class="ico">📋</span>变更记录</h2>
+      <div class="hint">所有人共享同一份记录，按时间倒序，最多保留最近 200 条。</div>
+      <div id="logList"></div>
+    </div>
+  </section>
+
+  <!-- 管理 -->
+  <section id="tab-mgr" style="display:none">
+    <div class="card">
+      <h2><span class="ico">🧾</span>物料管理</h2>
+      <div class="hint">维护物料清单（名称、单位、库存预警线）。修改名称/预警线不会改动库存数字。</div>
+      <div style="overflow-x:auto"><table class="mgr" id="mgrTable"></table></div>
+      <div class="divider"></div>
+      <h2 style="font-size:14px"><span class="ico" style="width:24px;height:24px;font-size:12px">➕</span>新增物料</h2>
+      <div class="inline-form">
+        <div class="f"><label style="margin-top:6px">名称</label><input type="text" id="newName" placeholder="例如：京东京造手持风扇"></div>
+        <div class="f" style="max-width:90px"><label style="margin-top:6px">单位</label><input type="text" id="newUnit" placeholder="个"></div>
+        <div class="f" style="max-width:110px"><label style="margin-top:6px">预警线</label><input type="number" id="newMin" min="0" value="5"></div>
+        <button class="btn btn-primary btn-sm" style="margin-bottom:1px" onclick="addItem()">添加</button>
+      </div>
+    </div>
+    <div class="card">
+      <h2><span class="ico">📍</span>办公地点</h2>
+      <div class="hint">入库和领用时会要求选择办公地点，方便追溯物料流向和分布。</div>
+      <div class="inline-form">
+        <div class="f"><input type="text" id="newOffice" placeholder="例如：上海办公室" onkeydown="if(event.key==='Enter')addOffice()"></div>
+        <button class="btn btn-ghost btn-sm" onclick="addOffice()">添加</button>
+      </div>
+      <div class="chip-list" id="officeList"></div>
+    </div>
+    <div class="card">
+      <h2><span class="ico">👥</span>团队成员</h2>
+      <div class="hint">登记和领用时从这里选名字，方便追溯是谁操作。输入新名字会自动加入。</div>
+      <div class="inline-form">
+        <div class="f"><input type="text" id="newMember" placeholder="输入同事姓名" onkeydown="if(event.key==='Enter')addMember()"></div>
+        <button class="btn btn-ghost btn-sm" onclick="addMember()">添加</button>
+      </div>
+      <div class="chip-list" id="memberList"></div>
+    </div>
+    <div class="card">
+      <h2><span class="ico">🗄️</span>数据说明</h2>
+      <div class="hint" style="margin-bottom:0">
+        <b>本工具仅登记市场部活动组的自留物料（不在库）</b>——正规在库物料的申请仍走 OA 流程，请勿在此登记。<br>
+        所有数据保存在云端，团队成员打开同一个链接看到的是同一份数据。<br>
+        每次提交前会自动拉取最新库存，尽量减少并发冲突；如遇提交失败请刷新重试。<br>
+        提示：链接请勿发到公司外部群，避免无关人员误改。
+      </div>
+    </div>
+  </section>
+</main>
+
+<div id="toast"></div>
+
+<!-- 名字选择弹窗 -->
+<div class="mask" id="nameMask" style="display:none">
+  <div class="modal">
+    <h3>你是谁？</h3>
+    <p>选择或输入你的名字，登记/领用操作都会记录在你名下。</p>
+    <div class="name-grid" id="nameGrid"></div>
+    <div class="inline-form">
+      <div class="f"><input type="text" id="nameInput" placeholder="其他人请在这里输入名字" onkeydown="if(event.key==='Enter')confirmNameInput()"></div>
+      <button class="btn btn-primary btn-sm" onclick="confirmNameInput()">确定</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ================= 配置 ================= */
+const JSONBIN_BIN_ID = "6ab1f912ffd5d16053219c16";
+const JSONBIN_KEY    = "$2a$10$g20dCruaHfbviimYowMpOu2HcePvpWDAdfMaQTziJM7L9w0tAGN.O"; // 受限密钥：仅读+更新，无法删除/新建
+const KEY_HEADER     = "X-Access-Key"; // 对应上面的受限密钥类型
+const DEMO_MODE = JSONBIN_BIN_ID === "__BIN_ID__" || JSONBIN_KEY === "__API_KEY__";
+const API_URL = "https://api.jsonbin.io/v3/b/" + JSONBIN_BIN_ID;
+const LOG_LIMIT = 200;
+
+/* ================= 状态 ================= */
+let data = null;
+let me = localStorage.getItem("me") || "";
+
+const SEED_ITEMS = [
+  {name:"中英双语版双折页",   unit:"份", min:100},
+  {name:"英文双折页",         unit:"份", min:100},
+  {name:"本地收款易拉宝",     unit:"个", min:1},
+  {name:"25款小安盲盒（小）", unit:"个", min:20},
+  {name:"26年新款小安盲盒",   unit:"个", min:20},
+  {name:"小安毛绒挂件",       unit:"个", min:20},
+  {name:"小安冰箱贴",         unit:"个", min:20},
+  {name:"公牛转换插头",       unit:"个", min:5},
+  {name:"外贸专属计算器",     unit:"个", min:10},
+  {name:"多功能数据线",       unit:"条", min:20},
+  {name:"小安宇航员音响",     unit:"个", min:5},
+  {name:"抽奖箱（小安款）",   unit:"个", min:1},
+  {name:"胶囊咖啡",           unit:"盒", min:10},
+  {name:"胶囊咖啡收纳盒",     unit:"个", min:5},
+  {name:"玻璃盘",             unit:"个", min:5},
+  {name:"帆布袋（广交会版本）", unit:"个", min:30},
+];
+const SEED_OFFICES = ["上海19F仓库","广州办公室仓库","深圳办公室仓库"];
+const SEED_MEMBERS = ["靖远","大白","晓菲","婉君","田璇","十七"];
+
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2,7);
+const esc = s => String(s??"").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const fmtTime = ts => { const d=new Date(ts);
+  const p=n=>String(n).padStart(2,"0");
+  return `${d.getMonth()+1}/${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`; };
+
+function toast(msg, isErr){
+  const t = document.getElementById("toast");
+  t.textContent = msg; t.className = isErr ? "err show" : "show";
+  clearTimeout(t._h); t._h = setTimeout(()=>t.className="", 2600);
+}
+
+/* ================= 云端读写（演示模式降级到 localStorage） ================= */
+function loadLocal(){ try{ return JSON.parse(localStorage.getItem("mat-data")||"null"); }catch(e){ return null; } }
+function saveLocal(d){ localStorage.setItem("mat-data", JSON.stringify(d)); }
+
+async function apiGet(){
+  if(DEMO_MODE){
+    const d = loadLocal();
+    return normalize(d || {});
+  }
+  const r = await fetch(API_URL + "/latest", {
+    cache: "no-store", headers: {[KEY_HEADER]: JSONBIN_KEY}
+  });
+  if(!r.ok) throw new Error("读取失败(" + r.status + ")");
+  const j = await r.json();
+  return normalize(j && j.record);
+}
+async function apiPut(d){
+  if(DEMO_MODE){
+    saveLocal(d);
+    return true;
+  }
+  const r = await fetch(API_URL, {
+    method: "PUT",
+    headers: {"Content-Type": "application/json", [KEY_HEADER]: JSONBIN_KEY},
+    body: JSON.stringify(d)
+  });
+  if(!r.ok) throw new Error("保存失败(" + r.status + ")");
+  return true;
+}
+function normalize(d){
+  if(!d || typeof d!=="object") d = {};
+  let seeded = false;
+  if(!Array.isArray(d.items) || !d.items.length){
+    d.items = SEED_ITEMS.map(x=>({id:uid(), name:x.name, unit:x.unit||"个", stock:0, min:x.min??5}));
+    seeded = true;
+  }
+  if(!Array.isArray(d.offices) || !d.offices.length){
+    d.offices = SEED_OFFICES.map(n=>({id:uid(), name:n}));
+    seeded = true;
+  }
+  if(!Array.isArray(d.members)) d.members = [...SEED_MEMBERS];
+  if(!Array.isArray(d.logs)) d.logs = [];
+  d.items.forEach(it=>{
+    it.min = Math.max(0, Number(it.min)||0);
+    if(!it.locs || typeof it.locs!=="object") it.locs = {};
+    // 兼容老数据：有总库存但没有分仓记录的，先归到「未分仓」
+    if(it.stock>0 && !Object.keys(it.locs).length) it.locs.__legacy__ = it.stock;
+    it.stock = Object.values(it.locs).reduce((a,b)=>a+Math.max(0,Number(b)||0),0);
+  });
+  // 兼容老数据：offices 可能是字符串数组
+  d.offices = d.offices.map(o => typeof o === "string" ? {id:uid(), name:o} : o);
+  if(seeded) d.__seeded = true;
+  return d;
+}
+
+async function load(showTip){
+  try{
+    window._lastLoadTs = Date.now();
+    document.getElementById("syncInfo").textContent = "正在同步…";
+    const fresh = await apiGet();
+    data = fresh;
+    document.getElementById("syncInfo").textContent = "上次同步：" + new Date().toLocaleTimeString("zh-CN");
+    if(showTip) toast("已刷新 ✔");
+    if(!me) openNameModal();
+    renderAll();
+    // 首次打开若云端没有任何数据（被本地默认值填充），悄悄保存一次确保其他人打开时数据一致
+    if(data.__seeded){
+      delete data.__seeded;
+      apiPut(data).catch(()=>{}); // 静默失败不影响用户
+    }
+  }catch(e){
+    document.getElementById("syncInfo").textContent = "同步失败：" + e.message + "（请点 ⟳ 重试）";
+    toast("云端连接失败：" + e.message, true);
+  }
+}
+
+/* 提交通用：拉最新 -> 应用变更 -> 保存 */
+async function commit(mutator, successMsg){
+  const btns = document.querySelectorAll("button");
+  btns.forEach(b=>b.disabled=true);
+  try{
+    const fresh = await apiGet();
+    const err = mutator(fresh);
+    if(err){ toast(err, true); return false; }
+    await apiPut(fresh);
+    data = fresh;
+    renderAll();
+    if(successMsg) toast(successMsg);
+    return true;
+  }catch(e){
+    toast("提交失败：" + e.message, true);
+    return false;
+  }finally{
+    btns.forEach(b=>b.disabled=false);
+  }
+}
+
+/* ================= 渲染 ================= */
+function renderAll(){
+  renderBanner();
+  renderInv();
+  renderIn();
+  renderOut();
+  renderLog();
+  renderMgr();
+  renderUserChip();
+}
+
+function renderBanner(){
+  const b = document.getElementById("topBanner");
+  if(DEMO_MODE){
+    b.className = "banner";
+    b.innerHTML = "⚠️ <b>演示模式</b>：数据只保存在你自己的浏览器里（localStorage），别人看不到。请配置 jsonbin 后切换到云端，数据会全员共享。";
+  } else {
+    b.className = "banner ok";
+    b.innerHTML = "✅ 已连接云端（jsonbin.io），所有团队成员实时共享库存。";
+  }
+  b.style.display = "";
+}
+
+function renderUserChip(){
+  document.getElementById("userChip").textContent = me ? "👤 " + me : "👤 未选择";
+}
+
+let invOfficeFilter = "all";
+function setInvFilter(id){ invOfficeFilter = id; renderInv(); }
+
+function renderInv(){
+  const g = document.getElementById("invGrid");
+  const s = document.getElementById("summary");
+  const f = invOfficeFilter;
+  const stockOf = it => f === "all" ? it.stock : locQty(it, f);
+  const filterName = f === "all" ? "" : officeNameById(f);
+
+  // 仓库筛选 chips
+  document.getElementById("officeChips").innerHTML =
+    `<button class="chip-btn${f==="all"?" on":""}" onclick="setInvFilter('all')">全部（合计）</button>` +
+    data.offices.map(o=>`<button class="chip-btn${f===o.id?" on":""}" onclick="setInvFilter('${o.id}')">${esc(o.name)}</button>`).join("");
+
+  const totalStock = data.items.reduce((a,b)=>a+stockOf(b), 0);
+  const lowCount = data.items.filter(i=>stockOf(i)>0 && stockOf(i)<i.min).length;
+  const zeroCount = data.items.filter(i=>stockOf(i)<=0).length;
+  s.innerHTML = `
+    <div class="summary-item"><div class="v">${data.items.length}</div><div class="k">物料种类</div></div>
+    <div class="summary-item"><div class="v">${totalStock}</div><div class="k">${filterName ? filterName + "库存" : "总库存件数"}</div></div>
+    <div class="summary-item"><div class="v">${lowCount}</div><div class="k">库存偏低</div></div>
+    <div class="summary-item"><div class="v">${zeroCount}</div><div class="k">无库存</div></div>
+  `;
+  if(!data.items.length){ g.innerHTML = '<div class="empty">暂无物料，请到「管理」添加</div>'; return; }
+  g.innerHTML = data.items.map(it=>{
+    const qty = stockOf(it);
+    let badge = "";
+    if(qty<=0) badge = '<span class="badge zero">无库存</span>';
+    else if(qty < it.min) badge = '<span class="badge low">库存偏低</span>';
+    // 分仓明细（全部视图时展示；筛选某仓库时只展示该仓库数）
+    let locLine = "";
+    if(f === "all"){
+      const parts = Object.entries(it.locs||{}).filter(([k,v])=>v>0).map(([k,v])=>`${officeNameById(k)} ${v}`);
+      locLine = `<div class="item-loc">${parts.length ? "📍 " + parts.join(" · ") : "尚未存放任何仓库"}</div>`;
+    }
+    return `<div class="item-card">${badge}
+      <div class="item-name">${esc(it.name)}</div>
+      <div class="item-stock">${qty}<small>${esc(it.unit)}/${filterName ? filterName : "库存"}</small></div>
+      ${locLine}
+      <div class="item-min">预警线 ${it.min} ${esc(it.unit)}</div>
+    </div>`;
+  }).join("");
+}
+
+function renderIn(){
+  // 办公地点下拉
+  const inOfficeSel = document.getElementById("inOffice");
+  const prevO = inOfficeSel.value;
+  inOfficeSel.innerHTML = data.offices.map(o=>`<option value="${o.id}">${esc(o.name)}</option>`).join("") +
+    '<option value="__custom__">＋ 其他（自己填写）</option>';
+  if(prevO && [...inOfficeSel.options].some(o=>o.value===prevO)) inOfficeSel.value = prevO;
+
+  // 已知物料列表
+  const box = document.getElementById("inRows");
+  if(!data.items.length){ box.innerHTML = '<div class="empty">暂无物料</div>'; }
+  else box.innerHTML = data.items.map(it=>`
+    <div class="in-row">
+      <div class="in-name">${esc(it.name)}<small>当前库存 ${it.stock} ${esc(it.unit)}</small></div>
+      <div><input type="number" min="0" inputmode="numeric" placeholder="0"
+        data-in-id="${it.id}" oninput="previewIn()"></div>
+      <div class="in-sum" id="sum-${it.id}"></div>
+    </div>`).join("");
+  // 新物料行（保留用户已填的内容）
+  const newBox = document.getElementById("newRows");
+  if(!newBox.children.length){
+    // 第一次渲染时加一行空模板
+    newBox.appendChild(buildNewRow());
+  }
+  previewIn();
+}
+
+function buildNewRow(values){
+  const wrap = document.createElement("div");
+  wrap.className = "new-row";
+  const v = values || {};
+  wrap.innerHTML = `
+    <input type="text" placeholder="物料名称" value="${esc(v.n||"")}">
+    <input type="text" placeholder="单位" value="${esc(v.u||"")}">
+    <input type="number" min="1" placeholder="数量" value="${esc(v.q||"")}" inputmode="numeric">
+    <button class="x-btn" title="删除这一行" onclick="this.parentNode.remove()">×</button>
+  `;
+  return wrap;
+}
+function addNewRow(){
+  document.getElementById("newRows").appendChild(buildNewRow());
+}
+
+function previewIn(){
+  let filled = 0, total = 0;
+  data.items.forEach(it=>{
+    const el = document.querySelector(`[data-in-id="${it.id}"]`);
+    const v = el ? parseInt(el.value,10) : 0;
+    const sum = document.getElementById("sum-"+it.id);
+    if(el && v>0){ filled++; total+=v; sum.textContent = "→ "+(it.stock+v); }
+    else if(sum) sum.textContent = "";
+  });
+  document.getElementById("inPreview").textContent = filled ? `共 ${filled} 种已知物料、合计 ${total} 件` : "填入数量后提交";
+}
+
+function renderOut(){
+  const officeSel = document.getElementById("outOffice");
+  const prevO = officeSel.value;
+  officeSel.innerHTML = data.offices.map(o=>`<option value="${o.id}">${esc(o.name)}</option>`).join("") +
+    '<option value="__custom__">＋ 其他（自己填写）</option>';
+  if(prevO && [...officeSel.options].some(o=>o.value===prevO)) officeSel.value = prevO;
+
+  // 物料列表（每种物料一行，填数量即领用；按所选仓库显示可领数量）
+  const filled = {};
+  document.querySelectorAll("[data-out-id]").forEach(el=>{
+    const v = parseInt(el.value,10);
+    if(v>0) filled[el.dataset.outId] = v;
+  });
+  const oid = officeSel.value;
+  const isCustom = oid === OFFICE_CUSTOM;
+  const box = document.getElementById("outRows");
+  if(!data.items.length){
+    box.innerHTML = '<div class="empty">暂无物料，请先到「管理」中添加</div>';
+  } else {
+    box.innerHTML = data.items.map(it=>{
+      const inOffice = isCustom ? 0 : locQty(it, oid);
+      return `
+      <div class="in-row">
+        <div class="in-name">${esc(it.name)}<small>本仓 ${inOffice} / 总库存 ${it.stock} ${esc(it.unit)}</small></div>
+        <div><input type="number" min="0" inputmode="numeric" placeholder="0"
+          data-out-id="${it.id}" value="${filled[it.id]||""}" oninput="previewOut()"></div>
+        <div class="in-sum" id="out-sum-${it.id}"></div>
+      </div>`;
+    }).join("");
+  }
+  previewOut();
+}
+
+function previewOut(){
+  const oid = document.getElementById("outOffice").value;
+  const isCustom = oid === OFFICE_CUSTOM;
+  let kinds = 0, total = 0, short = [];
+  data.items.forEach(it=>{
+    const el = document.querySelector(`[data-out-id="${it.id}"]`);
+    const v = el ? parseInt(el.value,10) : 0;
+    const sum = document.getElementById("out-sum-"+it.id);
+    if(!sum) return;
+    if(el && v>0){
+      kinds++; total += v;
+      const avail = isCustom ? 0 : locQty(it, oid);
+      const left = avail - v;
+      if(left < 0){ sum.textContent = "⚠️ 缺 " + (-left); sum.style.color = "var(--danger)"; short.push(it.name); }
+      else { sum.textContent = "→ 剩 " + left; sum.style.color = ""; }
+    } else { sum.textContent = ""; sum.style.color = ""; }
+  });
+  const p = document.getElementById("outPreview");
+  if(!kinds){ p.textContent = "填入数量后提交"; p.className = "hint"; return; }
+  if(short.length){
+    p.textContent = `共 ${kinds} 种、合计 ${total} 件　⚠️ ${short.join("、")} 库存不足，请调整数量`;
+    p.className = "hint bad";
+  } else {
+    p.textContent = `共 ${kinds} 种物料、合计 ${total} 件`;
+    p.className = "hint";
+  }
+}
+
+/* === 记录页（支持按操作/地点/关键字过滤） === */
+let logFilter = {action:"all", keyword:""};
+function renderLog(){
+  const box = document.getElementById("logList");
+  const logs = [...data.logs].sort((a,b)=>b.ts-a.ts);
+  let filtered = logs;
+  if(logFilter.action !== "all") filtered = filtered.filter(l=>l.action===logFilter.action);
+  if(logFilter.keyword){
+    const k = logFilter.keyword.toLowerCase();
+    filtered = filtered.filter(l =>
+      (l.user||"").toLowerCase().includes(k) ||
+      (l.itemName||"").toLowerCase().includes(k) ||
+      (l.office||"").toLowerCase().includes(k) ||
+      (l.note||"").toLowerCase().includes(k));
+  }
+  if(!filtered.length){ box.innerHTML = '<div class="empty">暂无记录</div>'; return; }
+  box.innerHTML = filtered.slice(0,LOG_LIMIT).map(l=>{
+    const cls = l.action==="in" ? "in" : l.action==="out" ? "out" : "edit";
+    const ico = l.action==="in" ? "📥" : l.action==="out" ? "📤" : "✏️";
+    let t1 = "";
+    if(l.action==="in") t1 = `<b>${esc(l.user)}</b> 入库 <span class="qty-tag qty-in">+${l.qty}</span> <b>${esc(l.itemName)}</b>`;
+    if(l.action==="out") t1 = `<b>${esc(l.user)}</b> 领用 <span class="qty-tag qty-out">-${l.qty}</span> <b>${esc(l.itemName)}</b>`;
+    if(l.action==="edit") t1 = `<b>${esc(l.user)}</b> 调整了物料清单`;
+    return `<div class="log"><div class="log-ico ${cls}">${ico}</div>
+      <div class="log-body">
+        <div class="log-t1">${t1}</div>
+        <div class="log-t2">
+          <span>🕒 ${fmtTime(l.ts)}</span>
+          ${l.office?`<span class="loc-tag">📍 ${esc(l.office)}</span>`:""}
+          ${l.note?`<span>📝 ${esc(l.note)}</span>`:""}
+        </div>
+      </div></div>`;
+  }).join("");
+}
+
+function renderMgr(){
+  const t = document.getElementById("mgrTable");
+  t.innerHTML = `<tr><th>物料名称</th><th>单位</th><th>当前库存</th><th>预警线</th><th style="width:150px">操作</th></tr>` +
+    data.items.map(it=>`<tr>
+      <td><input type="text" value="${esc(it.name)}" data-mgr="name" data-id="${it.id}"></td>
+      <td style="width:70px"><input type="text" value="${esc(it.unit)}" data-mgr="unit" data-id="${it.id}"></td>
+      <td style="width:80px;text-align:center"><b>${it.stock}</b></td>
+      <td style="width:80px"><input type="number" min="0" value="${it.min}" data-mgr="min" data-id="${it.id}"></td>
+      <td><button class="btn btn-sm btn-ghost" onclick="saveItem('${it.id}')">保存</button>
+          <button class="btn btn-sm btn-danger" onclick="delItem('${it.id}')">删除</button></td>
+    </tr>`).join("");
+  const ol = document.getElementById("officeList");
+  ol.innerHTML = data.offices.map(o=>
+    `<span class="chip">📍 ${esc(o.name)}<span class="x" onclick="delOffice('${esc(o.name)}')">✕</span></span>`).join("") ||
+    '<span class="hint" style="margin:0">暂无办公地点</span>';
+  const ml = document.getElementById("memberList");
+  ml.innerHTML = data.members.map(m=>
+    `<span class="chip">${esc(m)}<span class="x" onclick="delMember('${esc(m)}')">✕</span></span>`).join("") ||
+    '<span class="hint" style="margin:0">暂无成员，输入姓名添加</span>';
+}
+
+/* ================= 业务操作 ================= */
+function requireMe(){
+  if(!me){ openNameModal(); return false; }
+  return true;
+}
+
+async function submitIn(){
+  if(!requireMe()) return;
+  // 已知物料
+  const known = [];
+  data.items.forEach(it=>{
+    const el = document.querySelector(`[data-in-id="${it.id}"]`);
+    const v = el ? parseInt(el.value,10) : 0;
+    if(v>0) known.push({item:it, qty:v});
+  });
+  // 新物料
+  const newRows = [...document.querySelectorAll("#newRows .new-row")];
+  const news = [];
+  newRows.forEach(row=>{
+    const ins = row.querySelectorAll("input");
+    const n = ins[0].value.trim();
+    const u = ins[1].value.trim() || "个";
+    const q = parseInt(ins[2].value,10);
+    if(n && q>0) news.push({name:n, unit:u, qty:q});
+  });
+  if(!known.length && !news.length){ toast("请至少填写一项入库内容", true); return; }
+  const ofc = resolveOffice("inOffice","inOfficeOther");
+  if(!ofc){ toast("请在下方填写地点名称", true); document.getElementById("inOfficeOther").focus(); return; }
+  const note = document.getElementById("inNote").value.trim();
+  const ok = await commit(fresh=>{
+    const office = ensureOffice(fresh, ofc.name);
+    const oid = office.id;
+    for(const e of known){
+      const tgt = fresh.items.find(i=>i.id===e.item.id);
+      if(!tgt) continue;
+      if(!tgt.locs) tgt.locs = {};
+      tgt.locs[oid] = locQty(tgt, oid) + e.qty;
+      recalcStock(tgt);
+      fresh.logs.push({ts:Date.now(), user:me, action:"in", itemId:tgt.id, itemName:tgt.name, qty:e.qty, office:office.name, note});
+    }
+    // 新物料
+    for(const e of news){
+      let tgt = fresh.items.find(i=>i.name===e.name);
+      if(!tgt){ tgt = {id:uid(), name:e.name, unit:e.unit, stock:0, min:5, locs:{}}; fresh.items.push(tgt); }
+      if(!tgt.locs) tgt.locs = {};
+      tgt.locs[oid] = locQty(tgt, oid) + e.qty;
+      recalcStock(tgt);
+      fresh.logs.push({ts:Date.now(), user:me, action:"in", itemId:tgt.id, itemName:tgt.name, qty:e.qty, office:office.name, note:note || "新增物料入库"});
+    }
+    fresh.logs = fresh.logs.slice(-LOG_LIMIT);
+  }, "入库成功 ✔ 库存已更新");
+  if(ok){
+    document.getElementById("inNote").value = "";
+    document.getElementById("inOfficeOther").value = "";
+    document.getElementById("newRows").innerHTML = "";
+    document.getElementById("newRows").appendChild(buildNewRow());
+    renderIn();
+    switchTab("inv");
+  }
+}
+
+async function submitOut(){
+  if(!requireMe()) return;
+  // 收集本次要领用的物料（可多种）
+  const picks = [];
+  data.items.forEach(it=>{
+    const el = document.querySelector(`[data-out-id="${it.id}"]`);
+    const v = el ? parseInt(el.value,10) : 0;
+    if(v>0) picks.push({id:it.id, name:it.name, qty:v});
+  });
+  if(!picks.length){ toast("请填写要领用的物料数量", true); return; }
+  const note = document.getElementById("outNote").value.trim();
+  if(!note){ toast("请填写活动名称/用途", true); return; }
+  const ofc = resolveOffice("outOffice","outOfficeOther");
+  if(!ofc){ toast("请在下方填写地点名称", true); document.getElementById("outOfficeOther").focus(); return; }
+  const totalQty = picks.reduce((s,p)=>s+p.qty,0);
+  const ok = await commit(fresh=>{
+    // 找到对应仓库（自定义名称若不存在 → 该仓库必然没有库存）
+    let office = fresh.offices.find(x=>x.name===ofc.name);
+    if(!office) return `「${ofc.name}」还没有库存记录，新地点请先通过「入库」创建`;
+    const oid = office.id;
+    // 先整体校验（按仓库），避免出现"部分扣减"的半成品状态
+    const short = [];
+    for(const p of picks){
+      const tgt = fresh.items.find(i=>i.id===p.id);
+      if(!tgt) return "有物料已被删除，请刷新后重试";
+      const avail = locQty(tgt, oid);
+      if(avail < p.qty) short.push(`${tgt.name}（${office.name}仅剩 ${avail} ${tgt.unit}）`);
+    }
+    if(short.length) return "库存不足：" + short.join("、");
+    for(const p of picks){
+      const tgt = fresh.items.find(i=>i.id===p.id);
+      tgt.locs = tgt.locs || {};
+      tgt.locs[oid] = locQty(tgt, oid) - p.qty;
+      recalcStock(tgt);
+      fresh.logs.push({ts:Date.now(), user:me, action:"out", itemId:tgt.id, itemName:tgt.name, qty:p.qty, office:office.name, note});
+    }
+    fresh.logs = fresh.logs.slice(-LOG_LIMIT);
+  });
+  if(ok){
+    toast(picks.length === 1
+      ? `领用成功 ✔ ${picks[0].name} × ${picks[0].qty}`
+      : `领用成功 ✔ ${picks.length} 种物料、合计 ${totalQty} 件`);
+    document.getElementById("outNote").value = "";
+    document.getElementById("outOfficeOther").value = "";
+    renderOut();
+    switchTab("inv");
+  }
+}
+
+function officeById(id){ return data.offices.find(o=>o.id===id); }
+
+/* 地点下拉：支持「其他（自己填写）」，新地点自动加入地点清单 */
+const OFFICE_CUSTOM = "__custom__";
+const LEGACY_OFFICE = "__legacy__";
+function officeSelChange(selId, inputId){
+  const sel = document.getElementById(selId);
+  const inp = document.getElementById(inputId);
+  inp.style.display = sel.value === OFFICE_CUSTOM ? "block" : "none";
+}
+/* 返回 {id, name}；自定义地点 id 为 null（提交时才正式创建） */
+function resolveOffice(selId, inputId){
+  const sel = document.getElementById(selId);
+  if(sel.value !== OFFICE_CUSTOM){
+    const o = officeById(sel.value);
+    return o ? {id:o.id, name:o.name} : null;
+  }
+  const v = document.getElementById(inputId).value.trim();
+  return v ? {id:null, name:v} : null;
+}
+function ensureOffice(fresh, officeName){
+  let o = fresh.offices.find(x=>x.name===officeName);
+  if(!o){ o = {id:uid(), name:officeName}; fresh.offices.push(o); }
+  return o;
+}
+/* 分仓库存工具 */
+const locQty = (it, oid) => Math.max(0, Number((it.locs||{})[oid])||0);
+const officeNameById = oid => oid===LEGACY_OFFICE ? "未分仓" : ((data.offices.find(o=>o.id===oid)||{}).name || "已删除地点");
+function recalcStock(it){
+  it.stock = Object.values(it.locs||{}).reduce((a,b)=>a+Math.max(0,Number(b)||0),0);
+}
+
+async function addItem(){
+  const name = document.getElementById("newName").value.trim();
+  if(!name){ toast("请填写物料名称", true); return; }
+  const unit = document.getElementById("newUnit").value.trim() || "个";
+  const min = Math.max(0, parseInt(document.getElementById("newMin").value,10) || 0);
+  const ok = await commit(fresh=>{
+    if(fresh.items.some(i=>i.name===name)) return "已存在同名物料";
+    fresh.items.push({id:uid(), name, unit, stock:0, min});
+  }, "物料已添加 ✔");
+  if(ok) document.getElementById("newName").value = "";
+}
+
+async function saveItem(id){
+  if(!requireMe()) return;
+  const name = document.querySelector(`[data-mgr="name"][data-id="${id}"]`).value.trim();
+  const unit = document.querySelector(`[data-mgr="unit"][data-id="${id}"]`).value.trim() || "个";
+  const min = Math.max(0, parseInt(document.querySelector(`[data-mgr="min"][data-id="${id}"]`).value,10) || 0);
+  if(!name){ toast("名称不能为空", true); return; }
+  const ok = await commit(fresh=>{
+    const t = fresh.items.find(i=>i.id===id);
+    if(!t) return "物料不存在，请刷新";
+    t.name = name; t.unit = unit; t.min = min;
+    fresh.logs.push({ts:Date.now(), user:me, action:"edit", itemName:name, qty:0, note:"修改物料信息"});
+  }, "已保存 ✔");
+  if(!ok) load();
+}
+
+async function delItem(id){
+  const it = data.items.find(i=>i.id===id);
+  if(!it) return;
+  if(!confirm(`确定删除「${it.name}」？\n（当前库存 ${it.stock} ${it.unit}，删除后不可恢复）`)) return;
+  const ok = await commit(fresh=>{
+    fresh.items = fresh.items.filter(i=>i.id!==id);
+    fresh.logs.push({ts:Date.now(), user:me||"管理员", action:"edit", itemName:it.name, qty:0, note:"删除物料"});
+  }, "已删除 ✔");
+  if(!ok) load();
+}
+
+async function addOffice(){
+  const el = document.getElementById("newOffice");
+  const name = el.value.trim();
+  if(!name){ toast("请输入办公地点名称", true); return; }
+  const ok = await commit(fresh=>{
+    if(fresh.offices.some(o=>o.name===name)) return "已存在该办公地点";
+    fresh.offices.push({id:uid(), name});
+  }, "办公地点已添加 ✔");
+  if(ok) el.value = "";
+}
+
+async function delOffice(name){
+  const o = data.offices.find(x=>x.name===name);
+  if(o){
+    const holding = data.items.filter(it=>locQty(it,o.id)>0);
+    if(holding.length){
+      toast(`「${name}」还存有 ${holding.length} 种物料，请先把库存领用/转移完再删除`, true);
+      return;
+    }
+  }
+  if(!confirm(`从名单移除「${name}」？（不影响历史记录）`)) return;
+  await commit(fresh=>{
+    const tgt = fresh.offices.find(x=>x.name===name);
+    fresh.offices = fresh.offices.filter(x=>x.name!==name);
+    if(tgt) fresh.items.forEach(it=>{
+      if(it.locs) delete it.locs[tgt.id];
+      recalcStock(it);
+    });
+  }, "已移除 ✔");
+}
+
+async function addMember(){
+  const el = document.getElementById("newMember");
+  const name = el.value.trim();
+  if(!name){ toast("请输入姓名", true); return; }
+  const ok = await commit(fresh=>{
+    if(!fresh.members.includes(name)) fresh.members.push(name);
+  }, "已添加 ✔");
+  if(ok) el.value = "";
+}
+
+async function delMember(name){
+  if(!confirm(`从名单移除「${name}」？（不影响历史记录）`)) return;
+  await commit(fresh=>{ fresh.members = fresh.members.filter(m=>m!==name); }, "已移除 ✔");
+}
+
+/* ================= 名字弹窗 ================= */
+function openNameModal(){
+  const grid = document.getElementById("nameGrid");
+  grid.innerHTML = data.members.map(m=>
+    `<div class="name-opt${m===me?" me":""}" onclick="pickName('${esc(m)}')">${esc(m)}</div>`).join("") +
+    `<div class="name-opt" style="color:var(--ink-2);border-style:dashed" onclick="document.getElementById('nameInput').focus()">＋ 其他人</div>`;
+  document.getElementById("nameMask").style.display = "flex";
+}
+async function pickName(name){
+  me = name;
+  localStorage.setItem("me", me);
+  document.getElementById("nameMask").style.display = "none";
+  renderUserChip();
+  toast("你好，" + me + " 👋");
+}
+async function confirmNameInput(){
+  const name = document.getElementById("nameInput").value.trim();
+  if(!name){ toast("请输入名字", true); return; }
+  document.getElementById("nameInput").value = "";
+  me = name;
+  localStorage.setItem("me", me);
+  await commit(fresh=>{ if(!fresh.members.includes(name)) fresh.members.push(name); });
+  document.getElementById("nameMask").style.display = "none";
+  renderUserChip();
+  toast("你好，" + me + " 👋");
+}
+
+/* ================= tabs ================= */
+function switchTab(t){
+  document.querySelectorAll(".tab").forEach(b=>b.classList.toggle("active", b.dataset.tab===t));
+  ["inv","in","out","log","mgr"].forEach(x=>{
+    document.getElementById("tab-"+x).style.display = x===t ? "" : "none";
+  });
+  document.getElementById("logDot").style.display = "none";
+  window.scrollTo({top:0});
+}
+
+/* ================= 启动 ================= */
+load();
+document.addEventListener("visibilitychange", () => {
+  if(document.visibilityState !== "visible") return;
+  const last = window._lastLoadTs || 0;
+  if(Date.now() - last > 2*60*1000) load();
+});
+</script>
+</body>
+</html>
